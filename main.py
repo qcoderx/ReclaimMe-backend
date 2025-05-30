@@ -17,7 +17,7 @@ load_dotenv()
 app = FastAPI(
     title="ReclaimMe API - Multi-Scam Assistant",
     description="Generates tailored documents for various scam types to assist victims in Nigeria.",
-    version="1.2.0" # Incremented version
+    version="1.2.1" # Incremented version
 )
 
 # --- Add CORS Middleware (Essential for frontend JS interaction) ---
@@ -28,7 +28,8 @@ origins = [
     "http://localhost:8080", # Common for Vue dev server
     "http://127.0.0.1",
     "http://127.0.0.1:5500", # Common for Live Server VSCode extension
-    "null"  # Allows requests from `file:///` URLs (opening HTML directly in browser)
+    "null",  # Allows requests from `file:///` URLs (opening HTML directly in browser)
+    "https://reclaim-me.vercel.app" # Added your Vercel frontend URL
 ]
 app.add_middleware(
     CORSMiddleware,
@@ -972,6 +973,20 @@ HTML_PDF_TEMPLATE = """
 </body>
 </html>
 """
+
+@app.get("/", tags=["Root"], summary="Root path for API availability check")
+async def read_root():
+    """
+    Provides a welcome message and indicates the API is running.
+    Useful for health checks and basic discoverability.
+    """
+    return {
+        "message": "Welcome to the ReclaimMe API!",
+        "status": "healthy",
+        "documentation_swagger": "/docs",
+        "documentation_redoc": "/redoc",
+        "note": "Please use specific endpoints like /generate/... to get scam assistance documents."
+    }
 
 @app.post("/download-pdf/", summary="Generate and Download Documents as PDF", tags=["Utilities"])
 async def download_pdf_endpoint(data: PdfRequestData):
