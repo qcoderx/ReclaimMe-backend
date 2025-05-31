@@ -1381,11 +1381,3 @@ async def download_pdf_endpoint(data: PdfRequestData):
     except Exception as e:
         print(f"Error generating PDF: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to generate PDF: {str(e)}")
-
-# To run this FastAPI application:
-# 1. Save this code as `main.py`.
-# 2. Ensure you have a `.env` file in the same directory with your `OPENAI_API_KEY="your_key_here"`.
-# 3. Install necessary packages:
-#    pip install fastapi uvicorn python-dotenv openai "pydantic[email]" weasyprint
-# 4. Run from your terminal:
-#    uvicorn main:app --reload
