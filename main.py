@@ -46,6 +46,11 @@ if not api_key:
 client = AsyncOpenAI(api_key=api_key)
 
 # --- Pydantic Models ---
+class Beneficiary(BaseModel):
+    name: str = Field(..., example="Scammer X", description="Name of the beneficiary")
+    bank: str = Field(..., example="FakeBank Plc", description="Bank name")
+    account: str = Field(..., example="0123456789", description="Account number")
+
 class ScamReportData(BaseModel):
     name: str = Field(..., example="Amina Bello", description="Victim's full name.")
     phone: str = Field(..., example="+2348012345678", description="Victim's phone number.")
@@ -84,7 +89,13 @@ based on the detailed system instructions you have received and the following vi
 - Detailed Description of the Incident: {report_data.description}
 - Amount Lost (if applicable): {report_data.amount if report_data.amount else "Not specified"}
 - Payment Method Used (if applicable): {report_data.paymentMethod if report_data.paymentMethod else "Not specified"}
-- Beneficiary/Scammer Account/Details (if known): {report_data.beneficiary if report_data.beneficiary else "Not specified"}
+- Currency (if applicable): {report_data.currency it report_data.currency else "Not specified"
+beneficiary_details (if applicable)= (
+    f"Name: {report_data.beneficiary.name}, "
+    f"Bank: {report_data.beneficiary.bank}, "
+    f"Account: {report_data.beneficiary.account}"
+    if report_data.beneficiary 
+    else "Not specified"
 
 Ensure your response is a valid JSON object adhering to the structure:
 {{
