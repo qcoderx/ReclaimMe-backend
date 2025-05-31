@@ -56,7 +56,7 @@ class ScamReportData(BaseModel):
     description: str = Field(..., example="A detailed narrative of what happened, specific to the scam type.", description="Victim's detailed description of the scam.")
     amount: str = Field(None, example="NGN 50,000", description="Amount of money lost, if applicable. Include currency.")
     paymentMethod: str = Field(None, example="Bank Transfer to Zenith Bank", description="Method used for payment, if applicable.")
-    beneficiary: str = Field(None, example="Account: 0123456789, Bank: FakeBank Plc, Name: Scammer X", description="Details of the account/person who received the money, if applicable.")
+    class Beneficiary(BaseModel): name: str = Field(..., example="Scammer X", description="Name of the beneficiary") bank: str = Field(..., example="FakeBank Plc", description="Bank name") account: str = Field(..., example="0123456789", description="Account number")
 
 class GeneratedDocuments(BaseModel):
     consoling_message: str = Field(..., description="A supportive and consoling message for the victim, to be displayed first.")
