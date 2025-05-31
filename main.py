@@ -89,7 +89,7 @@ based on the detailed system instructions you have received and the following vi
 - Detailed Description of the Incident: {report_data.description}
 - Amount Lost (if applicable): {report_data.amount if report_data.amount else "Not specified"}
 - Payment Method Used (if applicable): {report_data.paymentMethod if report_data.paymentMethod else "Not specified"}
-- Currency (if applicable): {report_data.currency it report_data.currency else "Not specified"
+- Currency (if applicable): {report_data.currency if report_data.currency else "Not specified"
 beneficiary_details (if applicable)= (
     f"Name: {report_data.beneficiary.name}, "
     f"Bank: {report_data.beneficiary.bank}, "
