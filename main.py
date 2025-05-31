@@ -51,15 +51,13 @@ class ScamReportData(BaseModel):
     phone: str = Field(..., example="+2348012345678", description="Victim's phone number.")
     email: str = Field(..., example="amina.bello@example.com", description="Victim's email address.")
     address: str = Field(..., example="123 Adetokunbo Ademola Crescent, Victoria Island, Lagos", description="Victim's residential address.")
-    scamType: str = Field(..., description="The specific type of scam selected by the user from a predefined list (e.g., 'Phishing Scam', 'Online Marketplace Scam'). This is now a required field.")
-    dateTime: str = Field(..., example="2025-05-30T14:30", description="Date and time of the incident or discovery.")
-    description: str = Field(..., example="A detailed narrative of what happened, specific to the scam type.", description="Victim's detailed description of the scam.")
-    amount: str = Field(None, example="NGN 50,000", description="Amount of money lost, if applicable. Include currency.")
-    paymentMethod: str = Field(None, example="Bank Transfer to Zenith Bank", description="Method used for payment, if applicable.")
-    class Beneficiary(BaseModel): 
-       name: str = Field(..., example="Scammer X", description="Name of the beneficiary") 
-       bank: str = Field(..., example="FakeBank Plc", description="Bank name") 
-       account: str = Field(...,example="0123456789", description="Account number")
+    scamType: str = Field(..., description="The specific type of scam selected by the user from a predefined list")
+    dateTime: datetime = Field(..., example="2025-05-30T14:30", description="Date and time of the incident or discovery.")
+    description: str = Field(..., example="A detailed narrative of what happened", description="Victim's detailed description of the scam.")
+    amount: Optional[Decimal] = Field(None, example=50000.00, description="Amount of money lost, if applicable.")
+    currency: Optional[str] = Field(None, example="NGN", description="Currency of the amount lost")
+    paymentMethod: Optional[str] = Field(None, example="Bank Transfer to Zenith Bank", description="Method used for payment, if applicable.")
+    beneficiary: Optional[Beneficiary] = Field(None, description="Beneficiary information if available")
 
 class GeneratedDocuments(BaseModel):
     consoling_message: str = Field(..., description="A supportive and consoling message for the victim, to be displayed first.")
