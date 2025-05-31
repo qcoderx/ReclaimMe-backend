@@ -57,10 +57,10 @@ class ScamReportData(BaseModel):
     scamType: str = Field(..., description="The specific type of scam selected by the user from a predefined list")
     dateTime: str = Field(..., example="19/05/2025", description="Date and time of the incident or discovery.")
     description: str = Field(..., example="A detailed narrative of what happened", description="Victim's detailed description of the scam.")
-    amount: Optional[Decimal] = Field(None, example=50000.00, description="Amount of money lost, if applicable.")
-    currency: Optional[str] = Field(None, example="NGN", description="Currency of the amount lost")
-    paymentMethod: Optional[str] = Field(None, example="Bank Transfer to Zenith Bank", description="Method used for payment, if applicable.")
-    beneficiary: Optional[Beneficiary] = Field(None, description="Beneficiary information if available")
+    amount: float = Field(None, example=50000.00, description="Amount of money lost, if applicable.")
+    currency: str = Field(None, example="NGN", description="Currency of the amount lost")
+    paymentMethod: str = Field(None, example="Bank Transfer to Zenith Bank", description="Method used for payment, if applicable.")
+    beneficiary: Beneficiary = Field(None, description="Beneficiary information if available")
 
 class GeneratedDocuments(BaseModel):
     consoling_message: str = Field(..., description="A supportive and consoling message for the victim, to be displayed first.")
