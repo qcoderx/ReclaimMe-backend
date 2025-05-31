@@ -57,7 +57,7 @@ class ScamReportData(BaseModel):
     email: str = Field(..., example="amina.bello@example.com", description="Victim's email address.")
     address: str = Field(..., example="123 Adetokunbo Ademola Crescent, Victoria Island, Lagos", description="Victim's residential address.")
     scamType: str = Field(..., description="The specific type of scam selected by the user from a predefined list")
-    dateTime: datetime = Field(..., example="2025-05-30T14:30", description="Date and time of the incident or discovery.")
+    dateTime: str = Field(..., example="19/05/2025", description="Date and time of the incident or discovery.")
     description: str = Field(..., example="A detailed narrative of what happened", description="Victim's detailed description of the scam.")
     amount: Optional[Decimal] = Field(None, example=50000.00, description="Amount of money lost, if applicable.")
     currency: Optional[str] = Field(None, example="NGN", description="Currency of the amount lost")
