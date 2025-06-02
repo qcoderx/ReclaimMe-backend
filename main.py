@@ -1,4 +1,4 @@
-# main.py
+#I a Quadri Lasisi, The backend engineer of the project ReclaimMe and this is the main.py
 import os
 import json
 import io
@@ -11,14 +11,13 @@ from fastapi.middleware.cors import CORSMiddleware
 
 load_dotenv()
 
-# Initialize FastAPI app
+# Starting FastAPI app........
 app = FastAPI(
     title="ReclaimMe API - Scam Assistance",
     description="Generates highly detailed and tailored documents, and provides support for various scam types to assist victims in Nigeria using a single endpoint.",
     version="2.2.2" # Incremented version for full prompt population
 )
 
-# --- Add CORS Middleware (Essential for frontend JS interaction) ---
 origins = [
     "http://localhost",
     "http://localhost:3000",
@@ -26,7 +25,7 @@ origins = [
     "http://127.0.0.1",
     "http://127.0.0.1:5500",
     "null",
-    "https://reclaim-me.vercel.app" # Your Vercel frontend URL
+    "https://reclaim-me.vercel.app" 
 ]
 app.add_middleware(
     CORSMiddleware,
@@ -35,15 +34,14 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-# --- End CORS ---
 
-# Initialize OpenAI Async Client
+# Getting the OpenAI key....
 api_key = os.getenv("OPENAI_API_KEY")
 if not api_key:
     raise RuntimeError("OPENAI_API_KEY environment variable not set. Please create a .env file.")
 client = AsyncOpenAI(api_key=api_key)
 
-# --- Pydantic Models ---
+# Creating our sample(pydantic) models.....
 class Beneficiary(BaseModel):
     name: str = Field(..., example="Scammer X", description="Name of the beneficiary")
     bank: str = Field(..., example="FakeBank Plc", description="Bank name")
@@ -68,7 +66,7 @@ class GeneratedDocuments(BaseModel):
     bank_complaint_email: str  = Field(..., description="Draft text for an email to the victim's bank. Can be 'Not Applicable'.")
     next_steps_checklist: str = Field(..., description="A checklist of recommended next actions for the victim.")
 
-# --- Core AI Document Generation Helper Function ---
+# Begin Document Generation....
 async def invoke_ai_document_generation(
     system_prompt: str,
     report_data: ScamReportData,
@@ -144,7 +142,7 @@ If a bank email is not applicable for this specific scam type as per your system
             print(f"Problematic AI response content was: '{ai_response_content}'")
         raise HTTPException(status_code=500, detail=f"An unexpected error occurred while generating documents via AI: {str(e)}")
 
-# --- Base System Prompt Structure (Updated) ---
+# System Prompts for the AI.....
 BASE_SYSTEM_PROMPT_STRUCTURE = """
 You are ReclaimMe, an AI assistant dedicated to helping victims of scams in Nigeria.
 Your primary function is to provide an initial empathetic and consoling message, followed by generating three key documents:
@@ -174,7 +172,7 @@ Reference Nigerian context: relevant laws if generally known (e.g., Cybercrimes 
 Ensure checklists are highly practical and guide the user on *how* and *where* to report, including website links if commonly known and stable for official Nigerian government/agency portals.
 """
 
-# --- Scam-Specific System Prompt Details (NOW FULLY POPULATED) ---
+# User prompts for the AI, based on the scams
 
 PHISHING_SCAM_SYSTEM_PROMPT_DETAILS = """
 This user was a victim of a 'Phishing Scam'.
@@ -784,7 +782,7 @@ This user was a victim of 'Pickpocketing with Distraction'.
     * Voter's Card: Report to the Independent National Electoral Commission (INEC).
     * Passport: Report to the Nigerian Immigration Service (NIS).
     * Office/Student ID: Report to your employer/educational institution.
-6.  **Change Online Passwords (If Phone Stolen & Accessible):** If your stolen phone had access to email, social media, banking apps without immediate strong authentication, change the passwords for those critical accounts from a secure device as soon as possible. Enable 2FA on all accounts.
+6.  **Change Online Passwords (If Phone Stolen & Accessible):** If your stolen phone had access to email, social media,.   banking apps without immediate strong authentication, change the passwords for those critical accounts from a secure device as soon as possible. Enable 2FA on all accounts.
 7.  **Mentally Reconstruct the Event:** While details are fresh, write down everything you can remember about the incident, the location, the suspects, and the sequence of events. This will help your police report.
 8.  **Inform Relevant Parties:** If house/car keys were stolen, take steps to secure your property/vehicle (e.g., change locks). If work-related items were stolen, inform your employer.
 9.  **Be Vigilant in Crowded Areas:**
@@ -900,16 +898,6 @@ This user was a victim of 'Fake Police or Official Impersonation' leading to ext
 11. **Dashcam/Witnesses:** If your vehicle has a dashcam that captured the incident, preserve the footage. If there were credible witnesses who might be willing to provide a statement to the police (and it's safe to approach them), their input could be valuable.
 """
 
-# ... (Ensure ALL other XXX_SCAM_SYSTEM_PROMPT_DETAILS are similarly expanded with significant detail as demonstrated above) ...
-# For instance:
-# POS_MACHINE_TAMPERING_SCAM_SYSTEM_PROMPT_DETAILS: Add details on how to identify physical signs of tampering on POS devices, what information to get from the merchant if possible (POS ID, bank).
-# LOTTERY_OR_YOUVE_WON_SCAM_SYSTEM_PROMPT_DETAILS: Common names of fake lotteries in Nigeria, how they use names of real companies, psychological tactics used, types of fees demanded (activation, clearance, tax).
-# FAKE_PRODUCT_VENDOR_INPERSON_SCAM_SYSTEM_PROMPT_DETAILS: Specific advice for high-risk markets (e.g., Computer Village for electronics, Balogun for fabrics), how to spot counterfeit goods common in Nigeria (e.g., phones, designer items, medication), importance of testing items before payment.
-# BUS_TRANSPORT_SCAM_SYSTEM_PROMPT_DETAILS: More on "One Chance" tactics (e.g., fake passengers, driver collusion), advice for inter-city travel vs. intra-city, role of NURTW/park management in reporting, what to do if drugged.
-# FAKE_BANK_ALERT_SCAM_SYSTEM_PROMPT_DETAILS: Technical ways fake alerts are generated (apps, edited SMS), how businesses can protect themselves, importance of staff training, what to do if goods already released.
-# DONATION_INPERSON_SCAM_SYSTEM_PROMPT_DETAILS: Common stories used by street collectors, how to differentiate from legitimate NGO fundraisers who should have ID and materials, what to do if approached in traffic.
-# OTHER_SCAMS_SYSTEM_PROMPT_DETAILS: How to categorize an "other" scam to find the closest relevant advice, general principles of fraud prevention, importance of documenting even unusual scams.
-
 POS_MACHINE_TAMPERING_SCAM_SYSTEM_PROMPT_DETAILS = """
 This user was a victim of 'POS Machine Tampering'.
 
@@ -1006,14 +994,6 @@ This user was a victim of a 'Lottery or "You've Won!" Scam'.
 8.  **Warn Others:** Share your experience (anonymously if preferred) with friends, family, and in online communities to raise awareness about this specific lottery/prize scam and the tactics/names used.
 9.  **Be Skeptical:** If you receive an unexpected notification that you've won a large prize for a competition you don't remember entering, it's almost certainly a scam. Do not engage.
 """
-
-# ... (Ensure ALL other XXX_SCAM_SYSTEM_PROMPT_DETAILS are similarly expanded with significant detail as demonstrated above) ...
-# For instance:
-# FAKE_PRODUCT_VENDOR_INPERSON_SCAM_SYSTEM_PROMPT_DETAILS: Specific advice for high-risk markets (e.g., Computer Village for electronics, Balogun for fabrics), how to spot counterfeit goods common in Nigeria (e.g., phones, designer items, medication), importance of testing items before payment.
-# BUS_TRANSPORT_SCAM_SYSTEM_PROMPT_DETAILS: More on "One Chance" tactics (e.g., fake passengers, driver collusion), advice for inter-city travel vs. intra-city, role of NURTW/park management in reporting, what to do if drugged.
-# FAKE_BANK_ALERT_SCAM_SYSTEM_PROMPT_DETAILS: Technical ways fake alerts are generated (apps, edited SMS), how businesses can protect themselves, importance of staff training, what to do if goods already released.
-# DONATION_INPERSON_SCAM_SYSTEM_PROMPT_DETAILS: Common stories used by street collectors, how to differentiate from legitimate NGO fundraisers who should have ID and materials, what to do if approached in traffic.
-# OTHER_SCAMS_SYSTEM_PROMPT_DETAILS: How to categorize an "other" scam to find the closest relevant advice, general principles of fraud prevention, importance of documenting even unusual scams.
 
 FAKE_PRODUCT_VENDOR_INPERSON_SCAM_SYSTEM_PROMPT_DETAILS = """
 This user was a victim of a 'Fake Product or Fake Vendor Scam' in an in-person transaction.
@@ -1251,7 +1231,7 @@ The AI should analyze the user's description to identify core elements of the sc
 """
 
 
-# --- Combine Base with Specific Details to Create Full System Prompts ---
+# --- Combining the base prompt with each unique prompt details......
 PHISHING_SCAM_SYSTEM_PROMPT = BASE_SYSTEM_PROMPT_STRUCTURE + PHISHING_SCAM_SYSTEM_PROMPT_DETAILS
 ROMANCE_SCAM_SYSTEM_PROMPT = BASE_SYSTEM_PROMPT_STRUCTURE + ROMANCE_SCAM_SYSTEM_PROMPT_DETAILS
 ONLINE_MARKETPLACE_SCAM_SYSTEM_PROMPT = BASE_SYSTEM_PROMPT_STRUCTURE + ONLINE_MARKETPLACE_SCAM_SYSTEM_PROMPT_DETAILS
@@ -1277,7 +1257,7 @@ DONATION_INPERSON_SCAM_SYSTEM_PROMPT = BASE_SYSTEM_PROMPT_STRUCTURE + DONATION_I
 OTHER_SCAMS_SYSTEM_PROMPT = BASE_SYSTEM_PROMPT_STRUCTURE + OTHER_SCAMS_SYSTEM_PROMPT_DETAILS
 
 
-# --- Prompt Mapping Dictionary ---
+#Prompt Mapping Dictionary 
 PROMPT_MAPPING = {
     "Phishing Scam": PHISHING_SCAM_SYSTEM_PROMPT,
     "Romance Scam": ROMANCE_SCAM_SYSTEM_PROMPT,
@@ -1304,7 +1284,7 @@ PROMPT_MAPPING = {
     "Other Unspecified Scam": OTHER_SCAMS_SYSTEM_PROMPT 
 }
 
-# --- Single FastAPI Endpoint for Document Generation ---
+# --- Endpoint for the docs generation 
 @app.post("/generate-documents/", response_model=GeneratedDocuments, tags=["Scam Document Generation"])
 async def generate_scam_specific_documents(report_data: ScamReportData = Body(...)):
     selected_system_prompt = PROMPT_MAPPING.get(report_data.scamType, OTHER_SCAMS_SYSTEM_PROMPT)
