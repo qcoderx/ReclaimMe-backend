@@ -1,4 +1,4 @@
-#I a Quadri Lasisi, The backend engineer of the project ReclaimMe and this is the main.py
+#I am Quadri Lasisi, The backend engineer of the project ReclaimMe and this is the main.py
 import os
 import json
 import io
