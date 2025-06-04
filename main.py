@@ -41,7 +41,20 @@ if not api_key:
     raise RuntimeError("OPENAI_API_KEY environment variable not set. Please create a .env file.")
 client = AsyncOpenAI(api_key=api_key)
 
-# Creating our sample(pydantic) models.....
+# Creating our sample(pydantic) models...
+class LegalAidOrganization(BaseModel):
+    name: str
+    reporting_link: Optional[str] = None
+    contact_email: Optional[str] = None
+    services: List[str] = []
+    notes: str
+
+class LegalAidData(BaseModel):
+    nigerian_organizations: List[LegalAidOrganization]
+    african_organizations: List[LegalAidOrganization]
+    worldwide_organizations: List[LegalAidOrganization]
+
+# --- Existing Pydantic Models ---
 class Beneficiary(BaseModel):
     name: str = Field(..., example="Scammer X", description="Name of the beneficiary")
     bank: str = Field(..., example="FakeBank Plc", description="Bank name")
@@ -55,123 +68,207 @@ class ScamReportData(BaseModel):
     scamType: str = Field(..., description="The specific type of scam selected by the user from a predefined list")
     dateTime: str = Field(..., example="19/05/2025", description="Date and time of the incident or discovery.")
     description: str = Field(..., example="A detailed narrative of what happened", description="Victim's detailed description of the scam.")
-    amount: float = Field(None, example=50000.00, description="Amount of money lost, if applicable.")
-    currency: str = Field(None, example="NGN", description="Currency of the amount lost")
-    paymentMethod: str = Field(None, example="Bank Transfer to Zenith Bank", description="Method used for payment, if applicable.")
-    beneficiary: Beneficiary = Field(None, description="Beneficiary information if available")
+    amount: Optional[float] = Field(None, example=50000.00, description="Amount of money lost, if applicable.")
+    currency: Optional[str] = Field(None, example="NGN", description="Currency of the amount lost")
+    paymentMethod: Optional[str] = Field(None, example="Bank Transfer to Zenith Bank", description="Method used for payment, if applicable.")
+    beneficiary: Optional[Beneficiary] = Field(None, description="Beneficiary information if available")
 
 class GeneratedDocuments(BaseModel):
     consoling_message: str = Field(..., description="A supportive and consoling message for the victim, to be displayed first.")
     police_report_draft: str = Field(..., description="Draft text for a police report.")
-    bank_complaint_email: str  = Field(..., description="Draft text for an email to the victim's bank. Can be 'Not Applicable'.")
+    bank_complaint_email: str = Field(..., description="Draft text for an email to the victim's bank. Can be 'Not Applicable'.")
     next_steps_checklist: str = Field(..., description="A checklist of recommended next actions for the victim.")
+    suggested_legal_aids: Optional[List[LegalAidOrganization]] = Field(None, description="Suggested legal aid organizations based on the scam type.")
+
+# Global variable to store the loaded legal aids database
+LEGAL_AIDS_DB: Optional[LegalAidData] = None
+
+@app.on_event("startup")
+async def load_legal_aids_on_startup():
+    global LEGAL_AIDS_DB
+    try:
+        # Ensure 'legal_aids.json' is in the same directory as main.py or provide the correct path
+        with open("legal_aids.json", "r", encoding="utf-8") as f:
+            data = json.load(f)
+            LEGAL_AIDS_DB = LegalAidData(**data)
+        print("Successfully loaded legal_aids.json")
+    except FileNotFoundError:
+        LEGAL_AIDS_DB = None
+        print("Error: legal_aids.json not found. Legal aids endpoint and suggestion feature will not function correctly.")
+    except json.JSONDecodeError:
+        LEGAL_AIDS_DB = None
+        print("Error: Could not decode legal_aids.json. Check JSON formatting. Legal aids feature may not function.")
+    except Exception as e:
+        LEGAL_AIDS_DB = None
+        print(f"An unexpected error occurred while loading legal_aids.json: {e}. Legal aids feature may not function.")
 
 # Begin Document Generation....
 async def invoke_ai_document_generation(
-    system_prompt: str,
+    system_prompt_template: str, # Renamed to indicate it's a template
     report_data: ScamReportData,
     specific_scam_type_for_user_message: str
 ) -> GeneratedDocuments:
     user_prompt_content = f"""
-A user in Nigeria has been a victim of a {specific_scam_type_for_user_message}.
-Please generate a consoling message first, followed by the tailored documents (police report draft, bank complaint email, next steps checklist)
-based on the detailed system instructions you have received and the following victim-provided details:
+    A user in Nigeria has been a victim of a {specific_scam_type_for_user_message}.
+    Please generate a consoling message first, followed by the tailored documents (police report draft, bank complaint email, next steps checklist)
+    and suggested legal aids based on the detailed system instructions and legal aid list you have received, and the following victim-provided details:
+    - Victim's Name: {report_data.name}
+    - Victim's Phone Number: {report_data.phone}
+    - Victim's Email Address: {report_data.email}
+    - Victim's Residential Address: {report_data.address}
+    - Date and Time of Incident/Discovery: {report_data.dateTime}
+    - Detailed Description of the Incident: {report_data.description}
+    - Amount Lost (if applicable): {report_data.amount if report_data.amount else "Not specified"}
+    - Payment Method Used (if applicable): {report_data.paymentMethod if report_data.paymentMethod else "Not specified"}
+    - Currency (if applicable): {report_data.currency if report_data.currency else "Not specified"}
+    - Beneficiary Details (if applicable): {
+        f"Name: {report_data.beneficiary.name}, Bank: {report_data.beneficiary.bank}, Account: {report_data.beneficiary.account}"
+        if report_data.beneficiary else "Not specified"
+    }
 
-- Victim's Name: {report_data.name}
-- Victim's Phone Number: {report_data.phone}
-- Victim's Email Address: {report_data.email}
-- Victim's Residential Address: {report_data.address}
-- Date and Time of Incident/Discovery: {report_data.dateTime}
-- Detailed Description of the Incident: {report_data.description}
-- Amount Lost (if applicable): {report_data.amount if report_data.amount else "Not specified"}
-- Payment Method Used (if applicable): {report_data.paymentMethod if report_data.paymentMethod else "Not specified"}
-- Currency (if applicable): {report_data.currency if report_data.currency else "Not specified"}
-beneficiary_details (if applicable)= (
-    f"Name: {report_data.beneficiary.name}, "
-    f"Bank: {report_data.beneficiary.bank}, "
-    f"Account: {report_data.beneficiary.account}"
-    if report_data.beneficiary 
-    else "Not specified"
-)
+    Ensure your response is a valid JSON object adhering to the structure specified in your system instructions, including the 'suggested_legal_aids' field.
+    The content should be empathetic, professional, actionable, and highly relevant to a victim in Nigeria.
+    If a bank email is not applicable for this specific scam type as per your system instructions, the value for "bank_complaint_email" should be "Not Applicable for this scam type."
+    If no legal aids from the provided list are deemed relevant, 'suggested_legal_aids' should be an empty list.
+    """
 
-Ensure your response is a valid JSON object adhering to the structure:
-{{
-  "consoling_message": "Your empathetic and supportive message here...",
-  "police_report_draft": "...",
-  "bank_complaint_email": "...",
-  "next_steps_checklist": "..."
-}}
-The content should be empathetic, professional, actionable, and highly relevant to a victim in Nigeria, referencing appropriate Nigerian authorities and resources.
-If a bank email is not applicable for this specific scam type as per your system instructions, the value for "bank_complaint_email" should be "Not Applicable for this scam type."
-"""
+    # Prepare the legal aids data string to inject into the system prompt
+    legal_aids_data_string = "No legal aid information available." # Default if DB is not loaded
+    if LEGAL_AIDS_DB:
+        try:
+            # Convert the Pydantic model data to a JSON string for injection.
+            # You might want to format this more nicely or summarize if it's too long.
+            legal_aids_data_string = LEGAL_AIDS_DB.model_dump_json(indent=2)
+        except Exception as e:
+            print(f"Error formatting legal_aids_data for prompt: {e}")
+            # Fallback or raise error if critical
+            legal_aids_data_string = "Error formatting legal aid data. Suggestions may be unavailable."
+
+    # Inject the legal aids data into the system prompt template
+    final_system_prompt = system_prompt_template.replace(
+        "[YOUR_LEGAL_AIDS_JSON_CONTENT_HERE]",
+        legal_aids_data_string
+    )
+
     ai_response_content = ""
     try:
         response = await client.chat.completions.create(
-            model="gpt-4o",
+            model="gpt-4o", # Or your preferred OpenAI model
             response_format={"type": "json_object"},
             messages=[
-                {"role": "system", "content": system_prompt},
+                {"role": "system", "content": final_system_prompt}, # Use the finalized prompt
                 {"role": "user", "content": user_prompt_content}
             ],
-            temperature=0.6, 
-            max_tokens=4090 
+            temperature=0.6,
+            max_tokens=4090 # Adjust if needed, especially with longer prompts
         )
         ai_response_content = response.choices[0].message.content
         documents_json = json.loads(ai_response_content)
-        
-        required_keys = ["consoling_message", "police_report_draft", "bank_complaint_email", "next_steps_checklist"]
+
+        # Check for all required keys, including suggested_legal_aids as defined in your Pydantic model.
+        # The Pydantic model GeneratedDocuments will handle validation of the structure of suggested_legal_aids.
+        required_keys = [
+            "consoling_message",
+            "police_report_draft",
+            "bank_complaint_email",
+            "next_steps_checklist",
+            "suggested_legal_aids" # AI is now expected to provide this
+        ]
         if not all(key in documents_json for key in required_keys):
             missing_keys = [key for key in required_keys if key not in documents_json]
             print(f"AI response missing required keys: {missing_keys}. Received: {documents_json.keys()}")
-            raise HTTPException(status_code=500, detail=f"AI response did not contain all required document fields. Missing: {', '.join(missing_keys)}")
+            # Consider if 'suggested_legal_aids' being missing is a critical error or if it can be an empty list by default
+            # The prompt instructs AI to return empty list, so it should be present.
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"AI response did not contain all required document fields. Missing: {', '.join(missing_keys)}")
 
-        return GeneratedDocuments(
-            consoling_message=documents_json["consoling_message"],
-            police_report_draft=documents_json["police_report_draft"],
-            bank_complaint_email=documents_json["bank_complaint_email"],
-            next_steps_checklist=documents_json["next_steps_checklist"]
-        )
+        # Pydantic model `GeneratedDocuments` will parse and validate `suggested_legal_aids`
+        return GeneratedDocuments(**documents_json)
+
     except json.JSONDecodeError as e:
         print(f"AI response was not valid JSON: {e}. Raw response from AI: '{ai_response_content}'")
-        raise HTTPException(status_code=500, detail="AI response format error. The AI did not return valid JSON.")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="AI response format error. The AI did not return valid JSON.")
     except HTTPException as http_exc:
         raise http_exc
     except Exception as e:
         print(f"Error during AI document generation: {str(e)}")
         if ai_response_content:
             print(f"Problematic AI response content was: '{ai_response_content}'")
-        raise HTTPException(status_code=500, detail=f"An unexpected error occurred while generating documents via AI: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"An unexpected error occurred while generating documents via AI: {str(e)}")
+
 
 # System Prompts for the AI.....
 BASE_SYSTEM_PROMPT_STRUCTURE = """
-You are ReclaimMe, an AI assistant dedicated to helping victims of scams in Nigeria.
-Your primary function is to provide an initial empathetic and consoling message, followed by generating three key documents:
-1. A draft for a police report.
-2. A draft for a complaint email to the victim's bank (if applicable to the scam type and financial loss).
-3. A comprehensive next-steps checklist.
+You are ReclaimMe, an AI assistant meticulously designed to support victims of scams in Nigeria. Your primary mission is to provide empathetic guidance and generate crucial documents and actionable suggestions. You must strictly adhere to the output format and all instructions provided.
 
-**Consoling Message First:**
-Before any documents, craft a brief, supportive, and understanding message for the victim. Acknowledge their difficult situation and reassure them that taking action is a positive step. Keep it concise, around 2-4 sentences. Example: "I'm truly sorry to hear you've been through this difficult experience. It takes courage to come forward, and taking these next steps is important. We're here to help you outline what you can do."
+Your response MUST be a single, valid JSON object with the following exact keys, in the specified order:
 
-**Document Generation:**
-Maintain an empathetic, clear, and highly professional tone throughout all documents.
-The language used should be easy for an average Nigerian user to understand, yet formal enough for official submissions to Nigerian authorities (e.g., Nigerian Police Force - NPF, Economic and Financial Crimes Commission - EFCC, bank fraud departments, Federal Competition and Consumer Protection Commission - FCCPC, Nigerian Communications Commission - NCC, National Identity Management Commission - NIMC, Central Bank of Nigeria - CBN).
-
-Your response MUST be a valid JSON object with the following exact keys, in this order:
 {
-  "consoling_message": "Your empathetic and supportive message acknowledging the user's situation...",
-  "police_report_draft": "Detailed text for the police report...",
-  "bank_complaint_email": "Detailed text for the bank email... OR 'Not Applicable for this scam type.' if a bank email is irrelevant.",
-  "next_steps_checklist": "Detailed, actionable checklist..."
+    "consoling_message": "A brief, empathetic, and supportive message tailored to acknowledge the victim's difficult situation and reassure them. (String, 2-4 sentences)",
+    "police_report_draft": "A detailed, professionally toned, and actionable draft for a police report, incorporating all relevant victim-provided details and specific elements pertinent to the scam type. (String)",
+    "bank_complaint_email": "A precisely drafted email for the victim to send to their bank. This should be 'Not Applicable for this scam type.' if financial institutions are not directly involved or if no direct action can be taken via the bank for the specific scam. (String)",
+    "next_steps_checklist": "A comprehensive, highly practical, and actionable checklist of recommended next steps for the victim, specific to the scam type and Nigerian context. Include guidance on how and where to report, and official links if stable and known. (String with formatted list items)",
+    "suggested_legal_aids": [
+        {
+            "name": "Full name of the suggested legal aid organization. (String)",
+            "reporting_link": "The direct reporting link or official website of the organization. (String, Optional)",
+            "contact_email": "The contact email address, if available. (String, Optional)",
+            "services": [
+                "A list of key services this organization offers that are most relevant to the victim's specific scam situation. (Array of Strings)"
+            ],
+            "notes": "A concise explanation of why this organization is relevant for this particular scam type and victim, and any important considerations for contacting them. (String)"
+        }
+        // Include 0 to 3 suggested organizations. If none are relevant from the provided list, this array can be empty.
+    ]
 }
 
-When generating content for the documents, be highly specific to the scam type indicated.
-For all documents, incorporate the victim's provided details (name, contact, amount lost, scammer info, etc.) appropriately.
-Use placeholders like "[Specify Detail Here if Known e.g., Scammer's WhatsApp Number]" or "[Consult Bank for Exact Department Name e.g., Fraud Desk or Customer Care]" if the victim needs to add information that ReclaimMe wouldn't know.
-Reference Nigerian context: relevant laws if generally known (e.g., Cybercrimes (Prohibition, Prevention, etc.) Act, 2015), specific agencies, and common procedures in Nigeria.
-Ensure checklists are highly practical and guide the user on *how* and *where* to report, including website links if commonly known and stable for official Nigerian government/agency portals.
-"""
+**DETAILED INSTRUCTIONS FOR EACH SECTION:**
 
+**1. Consoling Message (consoling_message):**
+    - Start with this.
+    - Express genuine empathy and understanding for the victim's experience.
+    - Acknowledge the difficulty of their situation and validate their courage in seeking help.
+    - Reassure them that taking action is a positive and important step.
+    - Keep the message concise (approximately 2-4 sentences) and supportive.
+
+**2. Document Generation (police_report_draft, bank_complaint_email, next_steps_checklist):**
+    - **Tone and Language:** Maintain an empathetic, clear, professional, and respectful tone throughout all generated documents. The language must be accessible to an average Nigerian user but formal enough for official submissions to Nigerian authorities (e.g., Nigerian Police Force - NPF, Economic and Financial Crimes Commission - EFCC, bank fraud departments, Federal Competition and Consumer Protection Commission - FCCPC, etc.).
+    - **Specificity:** Tailor the content of each document meticulously to the *specific scam type* indicated by the user.
+    - **Victim's Details Integration:** Seamlessly and accurately incorporate all relevant details provided by the victim (e.g., name, contact information, date of incident, description of the scam, amount lost, payment method, beneficiary details if any) into the appropriate sections of the documents.
+    - **Placeholders:** Where specific details are unknown to ReclaimMe but necessary for the victim to complete the document (e.g., a specific scammer's phone number not provided, or the exact internal department of a bank), use clear placeholders like "[Specify Detail Here if Known, e.g., Scammer's WhatsApp Number]" or "[Consult Bank for Exact Department Name, e.g., Fraud Desk or Customer Care]".
+    - **Nigerian Context:**
+        - Reference relevant Nigerian laws if generally known and applicable (e.g., Cybercrimes (Prohibition, Prevention, etc.) Act, 2015 – use judiciously).
+        - Refer to specific Nigerian agencies, authorities, and common procedural steps within Nigeria.
+        - For the `next_steps_checklist`, ensure it is highly practical. Guide the user on *how* and *where* to report specific aspects of the scam, including official and stable website links for Nigerian government/agency portals where appropriate and commonly known.
+    - **Bank Complaint Email (bank_complaint_email):**
+        - If a bank email is not applicable for the reported scam type (e.g., no financial transaction through a bank, or the bank cannot assist with the specific issue), the value for this key MUST be the string: "Not Applicable for this scam type."
+        - Otherwise, draft a clear, formal, and actionable email detailing the issue, relevant transaction details, and desired actions from the bank.
+
+**3. Suggested Legal Aids (suggested_legal_aids):**
+    - **Source of Information:** You MUST base your suggestions exclusively on the list of legal aid organizations provided within the section titled "AVAILABLE LEGAL AID ORGANIZATIONS LIST" below. Do not invent organizations or use external knowledge beyond this list for these suggestions.
+    - **Selection Criteria:**
+        - Analyze the victim's reported `scamType` and the `description` of the incident.
+        - Select 0 to 3 organizations from the provided list that are most relevant to the victim's specific situation.
+        - **Prioritization:**
+            1.  Primarily select **Nigerian organizations** whose services directly align with the nature of the scam (e.g., financial crime, consumer rights violation, cybercrime, human rights issue).
+            2.  If Nigerian options are limited or a specific international dimension is highly relevant (and covered by an organization in the list that assists with Nigeria), you may include an **African or Worldwide organization**.
+        - Focus on organizations that offer clear reporting mechanisms, direct victim support, or legal assistance related to the scam.
+    - **Formatting Each Suggestion:** For each organization you suggest, you must populate all its sub-fields in the JSON structure:
+        - `name`: The full official name of the organization from the list.
+        - `reporting_link`: The direct reporting link or official website from the list. Provide `null` or an empty string if not available in the provided data.
+        - `contact_email`: The contact email from the list. Provide `null` or an empty string if not available.
+        - `services`: Extract or summarize 2-3 key services from the organization's description (in the provided list) that are most pertinent to helping this specific victim.
+        - `notes`: Write a brief, helpful note explaining *why* this organization is a relevant suggestion for *this specific scam type* and victim. Mention any critical first steps if evident from the organization's description (e.g., "You must report to your bank first before contacting CBN CPD").
+    - **No Relevant Organizations:** If, after careful review, no organizations from the "AVAILABLE LEGAL AID ORGANIZATIONS LIST" seem genuinely relevant or helpful for the specific scam type, return an empty array `[]` for the `suggested_legal_aids` key. Do not force a suggestion if none fit well.
+
+**AVAILABLE LEGAL AID ORGANIZATIONS LIST:**
+
+[YOUR_LEGAL_AIDS_JSON_CONTENT_HERE]
+
+**(End of Legal Aid List)**
+
+---
+**Final Check:** Before concluding, ensure the entire output is a single, valid JSON object adhering to the structure and all instructions defined above. The content must be empathetic, professional, actionable, and highly relevant to a victim in Nigeria.
+"""
 # User prompts for the AI, based on the scams
 
 PHISHING_SCAM_SYSTEM_PROMPT_DETAILS = """
@@ -1287,16 +1384,20 @@ PROMPT_MAPPING = {
 # --- Endpoint for the docs generation 
 @app.post("/generate-documents/", response_model=GeneratedDocuments, tags=["Scam Document Generation"])
 async def generate_scam_specific_documents(report_data: ScamReportData = Body(...)):
-    selected_system_prompt = PROMPT_MAPPING.get(report_data.scamType, OTHER_SCAMS_SYSTEM_PROMPT)
-    if not isinstance(selected_system_prompt, str) or not selected_system_prompt.strip():
-        print(f"Warning: System prompt for scamType '{report_data.scamType}' is empty or invalid. Falling back to OTHER_SCAMS_SYSTEM_PROMPT.")
-        selected_system_prompt = OTHER_SCAMS_SYSTEM_PROMPT
+    # selected_system_prompt IS the template that contains the placeholder
+    selected_system_prompt_template = PROMPT_MAPPING.get(report_data.scamType, OTHER_SCAMS_SYSTEM_PROMPT)
+
+    if not isinstance(selected_system_prompt_template, str) or not selected_system_prompt_template.strip():
+        print(f"Warning: System prompt template for scamType '{report_data.scamType}' is empty or invalid. Falling back to OTHER_SCAMS_SYSTEM_PROMPT.")
+        # Ensure OTHER_SCAMS_SYSTEM_PROMPT is correctly defined and also contains the placeholder
+        selected_system_prompt_template = OTHER_SCAMS_SYSTEM_PROMPT
 
     return await invoke_ai_document_generation(
-        system_prompt=selected_system_prompt,
+        system_prompt_template=selected_system_prompt_template, # Pass it as a template
         report_data=report_data,
         specific_scam_type_for_user_message=report_data.scamType
     )
+
 
 @app.get("/", tags=["Root"], summary="Root path for API availability check")
 async def read_root():
