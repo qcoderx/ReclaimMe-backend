@@ -41,19 +41,6 @@ if not api_key:
     raise RuntimeError("OPENAI_API_KEY environment variable not set. Please create a .env file.")
 client = AsyncOpenAI(api_key=api_key)
 
-# Creating our sample(pydantic) models...
-class LegalAidOrganization(BaseModel):
-    name: str
-    reporting_link: Optional[str] = None
-    contact_email: Optional[str] = None
-    services: List[str] = []
-    notes: str
-
-class LegalAidData(BaseModel):
-    nigerian_organizations: List[LegalAidOrganization]
-    african_organizations: List[LegalAidOrganization]
-    worldwide_organizations: List[LegalAidOrganization]
-
 # --- Existing Pydantic Models ---
 class Beneficiary(BaseModel):
     name: str = Field(..., example="Scammer X", description="Name of the beneficiary")
@@ -78,29 +65,10 @@ class GeneratedDocuments(BaseModel):
     police_report_draft: str = Field(..., description="Draft text for a police report.")
     bank_complaint_email: str = Field(..., description="Draft text for an email to the victim's bank. Can be 'Not Applicable'.")
     next_steps_checklist: str = Field(..., description="A checklist of recommended next actions for the victim.")
-    suggested_legal_aids: Optional[List[LegalAidOrganization]] = Field(None, description="Suggested legal aid organizations based on the scam type.")
+    
+# Global variable to store the loaded 
 
-# Global variable to store the loaded legal aids database
-LEGAL_AIDS_DB: Optional[LegalAidData] = None
 
-@app.on_event("startup")
-async def load_legal_aids_on_startup():
-    global LEGAL_AIDS_DB
-    try:
-        # Ensure 'legal_aids.json' is in the same directory as main.py or provide the correct path
-        with open("legal_aids.json", "r", encoding="utf-8") as f:
-            data = json.load(f)
-            LEGAL_AIDS_DB = LegalAidData(**data)
-        print("Successfully loaded legal_aids.json")
-    except FileNotFoundError:
-        LEGAL_AIDS_DB = None
-        print("Error: legal_aids.json not found. Legal aids endpoint and suggestion feature will not function correctly.")
-    except json.JSONDecodeError:
-        LEGAL_AIDS_DB = None
-        print("Error: Could not decode legal_aids.json. Check JSON formatting. Legal aids feature may not function.")
-    except Exception as e:
-        LEGAL_AIDS_DB = None
-        print(f"An unexpected error occurred while loading legal_aids.json: {e}. Legal aids feature may not function.")
 
 # Begin Document Generation....
 async def invoke_ai_document_generation(
@@ -132,24 +100,6 @@ async def invoke_ai_document_generation(
     If no legal aids from the provided list are deemed relevant, 'suggested_legal_aids' should be an empty list.
     """
 
-    # Prepare the legal aids data string to inject into the system prompt
-    legal_aids_data_string = "No legal aid information available." # Default if DB is not loaded
-    if LEGAL_AIDS_DB:
-        try:
-            # Convert the Pydantic model data to a JSON string for injection.
-            # You might want to format this more nicely or summarize if it's too long.
-            legal_aids_data_string = LEGAL_AIDS_DB.model_dump_json(indent=2)
-        except Exception as e:
-            print(f"Error formatting legal_aids_data for prompt: {e}")
-            # Fallback or raise error if critical
-            legal_aids_data_string = "Error formatting legal aid data. Suggestions may be unavailable."
-
-    # Inject the legal aids data into the system prompt template
-    final_system_prompt = system_prompt_template.replace(
-        "[YOUR_LEGAL_AIDS_JSON_CONTENT_HERE]",
-        legal_aids_data_string
-    )
-
     ai_response_content = ""
     try:
         response = await client.chat.completions.create(
@@ -172,7 +122,6 @@ async def invoke_ai_document_generation(
             "police_report_draft",
             "bank_complaint_email",
             "next_steps_checklist",
-            "suggested_legal_aids" # AI is now expected to provide this
         ]
         if not all(key in documents_json for key in required_keys):
             missing_keys = [key for key in required_keys if key not in documents_json]
