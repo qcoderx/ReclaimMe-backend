@@ -197,6 +197,140 @@ async def invoke_ai_document_generation(
 
 
 # System Prompts for the AI.....
+LEGAL_AND_REPORTING_ORGANIZATIONS = {
+  "nigerian_organizations": [
+    {
+      "name": "Economic and Financial Crimes Commission (EFCC)",
+      "reporting_link": "https://www.efcc.gov.ng/efcc/channels-of-reporting-complaints-2/",
+      "contact_email": "info@efcc.gov.ng",
+      "services": ["Investigation of financial crimes", "Prosecution of scammers", "Asset recovery (potential)"],
+      "notes": "Primary agency for financial crimes. Reporting can be done via written reports, email, their 'Eagle Eye' app, and social media."
+    },
+    {
+      "name": "Nigeria Police Force (NPF)",
+      "reporting_link": "https://www.npf.gov.ng/",
+      "contact_email": null,
+      "services": ["Investigation of crimes (including fraud/cybercrime)", "Arrest and prosecution"],
+      "notes": "Report scams to local police stations or specialized units like the Special Fraud Unit (SFU). The main website can help locate contacts. Some state commands might have specific online portals for certain complaints."
+    },
+    {
+      "name": "Nigerian Communications Commission (NCC) - Consumer Complaint Portal",
+      "reporting_link": "https://consumer.ncc.gov.ng/index.php/consumer/lodge-complaint1",
+      "contact_email": "consumerportal@ncc.gov.ng",
+      "services": ["Complaints regarding telecom services used in scams"],
+      "notes": "For issues where telecom services were instrumental in the scam."
+    },
+    {
+      "name": "Central Bank of Nigeria (CBN) - Consumer Protection Department",
+      "reporting_link": "https://www.cbn.gov.ng/supervision/cpdcomgt.html",
+      "contact_email": "cpd@cbn.gov.ng",
+      "services": ["Complaints against financial institutions regulated by CBN"],
+      "notes": "Escalate complaints here if your financial institution fails to resolve an issue related to a scam (e.g., unauthorized transactions). You must complain to your bank first."
+    },
+    {
+      "name": "Legal Aid Council of Nigeria",
+      "reporting_link": "https://legalaidcouncil.gov.ng/contact-us/",
+      "contact_email": "info@legalaidcouncil.gov.ng",
+      "services": ["Free legal aid and advice to indigent Nigerians"],
+      "notes": "Provides legal assistance for criminal and some civil matters to those who qualify. Contact specific offices."
+    },
+    {
+      "name": "Federal Competition and Consumer Protection Commission (FCCPC)",
+      "reporting_link": "https://fccpc.gov.ng/contact/",
+      "contact_email": "contact@fccpc.gov.ng",
+      "services": ["Consumer rights protection", "Redress for unfair/deceptive practices"],
+      "notes": "Handles complaints about fraudulent business practices and can mediate disputes or issue sanctions."
+    },
+    {
+      "name": "National Human Rights Commission (NHRC) Nigeria",
+      "reporting_link": "https://www.nhrc.gov.ng/report-a-case/",
+      "contact_email": "info@nhrc.gov.ng",
+      "services": ["Protection of human rights", "Complaints about human rights violations"],
+      "notes": "Relevant if a scam leads to or involves human rights abuses."
+    },
+    {
+      "name": "Public Complaints Commission (PCC) Nigeria",
+      "reporting_link": "https://pcc.gov.ng/contact-us/",
+      "contact_email": "info@pcc.gov.ng",
+      "services": ["Investigation of administrative injustice by public bodies"],
+      "notes": "Nigeria's Ombudsman. May be relevant if there's a failure by a government agency in relation to scam victim support or prevention duty."
+    },
+    {
+        "name": "Nigerian Bar Association (NBA)",
+        "reporting_link": "https://nigerianbar.org.ng/contacts",
+        "contact_email": "info@nigerianbar.org.ng",
+        "services": ["Pro-bono legal services (through some branches/committees)", "Human rights advocacy"],
+        "notes": "The national body for lawyers. Some state branches or committees may offer pro-bono legal aid schemes or human rights support."
+    }
+  ],
+  "african_organizations": [
+    {
+        "name": "African Commission on Human and Peoples' Rights (ACHPR)",
+        "reporting_link": "https://www.achpr.au.int/complaints",
+        "contact_email": "au-banjul@africa-union.org",
+        "services": ["Adjudication on human rights violations by State Parties to the African Charter"],
+        "notes": "For cases where scams involve state-level negligence or complicity leading to human rights violations, after exhausting local remedies."
+    },
+    {
+        "name": "ECOWAS Community Court of Justice",
+        "reporting_link": "https://www.courtecowas.org/site/index.php/contact-us/",
+        "contact_email": "info@courtecowas.org",
+        "services": ["Adjudication on human rights violations within ECOWAS member states"],
+        "notes": "Relevant for human rights violations related to scams within West Africa, after local remedies are exhausted."
+    }
+  ],
+  "worldwide_organizations": [
+    {
+      "name": "INTERPOL",
+      "reporting_link": "https://www.interpol.int/What-you-can-do/If-you-need-help",
+      "contact_email": null,
+      "services": ["Facilitates cross-border police cooperation"],
+      "notes": "Individuals report to their national police, who then liaise with INTERPOL for international cases."
+    },
+    {
+      "name": "Federal Bureau of Investigation (FBI) - Internet Crime Complaint Center (IC3) (USA)",
+      "reporting_link": "https://www.ic3.gov/",
+      "contact_email": null,
+      "services": ["Collects and analyzes reports of cyber-enabled crime with a U.S. nexus"],
+      "notes": "File a complaint if the scam has a U.S. connection (victim, perpetrator, or infrastructure)."
+    },
+    {
+      "name": "Action Fraud (UK)",
+      "reporting_link": "https://www.actionfraud.police.uk/",
+      "contact_email": null,
+      "services": ["UK's national reporting centre for fraud and cybercrime"],
+      "notes": "Report if the scam has a UK connection. For scam websites, also see NCSC UK."
+    },
+    {
+      "name": "Federal Trade Commission (FTC) (USA)",
+      "reporting_link": "https://reportfraud.ftc.gov/",
+      "contact_email": null,
+      "services": ["Collects reports on scams, fraud, and bad business practices with a U.S. nexus"],
+      "notes": "U.S. consumer protection agency."
+    },
+    {
+      "name": "econsumer.gov (ICPEN - International Consumer Protection and Enforcement Network)",
+      "reporting_link": "https://www.econsumer.gov/",
+      "contact_email": null,
+      "services": ["Portal for reporting international scams and disputes with foreign companies"],
+      "notes": "Complaints are shared with consumer protection agencies in ICPEN member countries."
+    },
+    {
+      "name": "Global Anti-Scam Alliance (GASA)",
+      "reporting_link": "https://www.gasa.org/",
+      "contact_email": "info@gasa.org",
+      "services": ["Research, awareness, collaboration on scam prevention"],
+      "notes": "A resource for understanding global scam trends and prevention. Does not typically take individual scam reports for investigation."
+    },
+    {
+        "name": "Access Now",
+        "reporting_link": "https://www.accessnow.org/help/",
+        "contact_email": "help@accessnow.org",
+        "services": ["Digital security helpline", "Advocacy for digital rights"],
+        "notes": "Provides digital security advice and assistance to individuals and organizations at risk, which can be relevant for victims of online scams."
+    }
+  ]
+}
 BASE_SYSTEM_PROMPT_STRUCTURE = """
 You are ReclaimMe, an AI assistant meticulously designed to support victims of scams in Nigeria. Your primary mission is to provide empathetic guidance and generate crucial documents and actionable suggestions. You must strictly adhere to the output format and all instructions provided.
 
@@ -229,7 +363,8 @@ Your response MUST be a single, valid JSON object with the following exact keys,
     - Acknowledge the difficulty of their situation and validate their courage in seeking help.
     - Reassure them that taking action is a positive and important step.
     - Keep the message concise (approximately 2-4 sentences) and supportive.
-
+    - Now, go through the type of scam, and suggest Legal bodies and support groups that can help the person on that particular type of scam, keep this around 5-7 sentences as well
+    
 **2. Document Generation (police_report_draft, bank_complaint_email, next_steps_checklist):**
     - **Tone and Language:** Maintain an empathetic, clear, professional, and respectful tone throughout all generated documents. The language must be accessible to an average Nigerian user but formal enough for official submissions to Nigerian authorities (e.g., Nigerian Police Force - NPF, Economic and Financial Crimes Commission - EFCC, bank fraud departments, Federal Competition and Consumer Protection Commission - FCCPC, etc.).
     - **Specificity:** Tailor the content of each document meticulously to the *specific scam type* indicated by the user.
@@ -242,28 +377,6 @@ Your response MUST be a single, valid JSON object with the following exact keys,
     - **Bank Complaint Email (bank_complaint_email):**
         - If a bank email is not applicable for the reported scam type (e.g., no financial transaction through a bank, or the bank cannot assist with the specific issue), the value for this key MUST be the string: "Not Applicable for this scam type."
         - Otherwise, draft a clear, formal, and actionable email detailing the issue, relevant transaction details, and desired actions from the bank.
-
-**3. Suggested Legal Aids (suggested_legal_aids):**
-    - **Source of Information:** You MUST base your suggestions exclusively on the list of legal aid organizations provided within the section titled "AVAILABLE LEGAL AID ORGANIZATIONS LIST" below. Do not invent organizations or use external knowledge beyond this list for these suggestions.
-    - **Selection Criteria:**
-        - Analyze the victim's reported `scamType` and the `description` of the incident.
-        - Select 0 to 3 organizations from the provided list that are most relevant to the victim's specific situation.
-        - **Prioritization:**
-            1.  Primarily select **Nigerian organizations** whose services directly align with the nature of the scam (e.g., financial crime, consumer rights violation, cybercrime, human rights issue).
-            2.  If Nigerian options are limited or a specific international dimension is highly relevant (and covered by an organization in the list that assists with Nigeria), you may include an **African or Worldwide organization**.
-        - Focus on organizations that offer clear reporting mechanisms, direct victim support, or legal assistance related to the scam.
-    - **Formatting Each Suggestion:** For each organization you suggest, you must populate all its sub-fields in the JSON structure:
-        - `name`: The full official name of the organization from the list.
-        - `reporting_link`: The direct reporting link or official website from the list. Provide `null` or an empty string if not available in the provided data.
-        - `contact_email`: The contact email from the list. Provide `null` or an empty string if not available.
-        - `services`: Extract or summarize 2-3 key services from the organization's description (in the provided list) that are most pertinent to helping this specific victim.
-        - `notes`: Write a brief, helpful note explaining *why* this organization is a relevant suggestion for *this specific scam type* and victim. Mention any critical first steps if evident from the organization's description (e.g., "You must report to your bank first before contacting CBN CPD").
-    - **No Relevant Organizations:** If, after careful review, no organizations from the "AVAILABLE LEGAL AID ORGANIZATIONS LIST" seem genuinely relevant or helpful for the specific scam type, return an empty array `[]` for the `suggested_legal_aids` key. Do not force a suggestion if none fit well.
-
-**AVAILABLE LEGAL AID ORGANIZATIONS LIST:**
-
-[YOUR_LEGAL_AIDS_JSON_CONTENT_HERE]
-
 **(End of Legal Aid List)**
 
 ---
